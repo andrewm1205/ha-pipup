@@ -41,6 +41,10 @@ Requires the [PiPup fork APK](https://github.com/mhoogenbosch/PiPup/releases) on
     `fixable_on_tv` attribute lists which permissions that works for on this device
   - **Permission screen** button (app ≥ 0.8.0) — shows PiPup's own permission overview on the TV,
     with a *Fix* button next to everything that is missing
+  - **Fix self-update permission** button (app ≥ 0.11.1) — puts the "install unknown apps" screen on
+    the TV for the permission the self-updater needs. Neither HA nor the app can *grant* it (it is an
+    app-op), so on a device that **blocks** it outright the button's error carries the exact adb command
+    instead of pretending the press worked
   - **App uptime** diagnostic sensor and a diagnostics download — which, with app ≥ 0.9.0, includes
     the app's own permission diagnosis (which activity handles each settings screen, whether it is a
     vendor placeholder, whether a background launch is allowed, how the last attempt ended). That file
@@ -75,8 +79,10 @@ Requires the [PiPup fork APK](https://github.com/mhoogenbosch/PiPup/releases) on
   overview, the first missing permission, or a specific one. Neither HA nor the app can *grant* these
   (they are app-ops, i.e. shell/system territory), but walking someone to the exact screen beats
   telling them to go find an adb prompt. The TV is woken first. Where a device has no such screen —
-  Fire OS answers those intents with placeholders that do nothing — the action fails with the adb
-  command in its message instead of pretending it worked.
+  Fire OS answers those intents with placeholders that do nothing — or where the device **blocks** the
+  permission at system level (an app-op stuck `errored`/`ignored`, e.g. a TV that locks "install unknown
+  apps" for sideloaded apps; app ≥ 0.11.1), the action fails with the adb command in its message instead
+  of pretending it worked.
 
   ⚠️ **The overlay permission itself cannot be fixed remotely.** Android blocks background activity
   starts unless the app holds `SYSTEM_ALERT_WINDOW`, so the one permission you most want this for is
@@ -391,8 +397,10 @@ keep these devices on a segment you control.
 - **"unsupported_version" while adding** — the TV runs the original PiPup; sideload the
   [fork APK](https://github.com/mhoogenbosch/PiPup/releases) first.
 - **Connectivity sensor off / popup & screen "unknown"** — the TV is off/asleep (FireTV sticks cut
-  their network entirely in standby) or the PiPup service is not running (open the app once after
-  boot). Entities keep their last state on purpose; automate on the connectivity sensor's off→on edge.
+  their network entirely in standby) or the PiPup service is not running. App ≥ 0.12.0 restarts the
+  service by itself on boot, including a silent boot after a power cut; on older apps, open the app
+  once after boot. Entities keep their last state on purpose; automate on the connectivity sensor's
+  off→on edge.
 - **Buttons don't react to the remote** — buttons require app ≥ 0.3.0; also note the popup takes
   input focus while buttons are visible (BACK gives control back to the TV app).
 - **Camera stream does not play** — the TV must be able to reach your Home Assistant internal URL;
