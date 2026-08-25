@@ -383,6 +383,64 @@ Notes from running this in practice:
 - If you monitor port 7979 externally (e.g. Uptime Kuma), that sensor is a good extra trigger,
   because it detects a dead server slightly sooner than the coordinator does.
 
+## Known limitations
+
+### The update button is silent only on Android 12+
+
+Pressing **Install** on the update entity self-updates silently on **Android 12+**. On **Android < 12**
+(most Fire TV sticks, older Android TV boxes) the operating system forces an on-screen confirmation for
+*any* app-initiated install — the `REQUEST_INSTALL_PACKAGES` permission does not change that, and no app
+can grant itself the way around it (that needs a system/privileged app, an MDM device owner, or root).
+So on those TVs the button wakes the screen and shows a confirmation popup with an **Install** button
+that has to be accepted once with the remote (app ≥ 0.12.1). The update entity's `requires_remote`
+attribute is `true` for exactly these devices.
+
+**Fully hands-off updates on Android < 12** are possible over ADB, because a **shell-initiated**
+`adb install -r` has no on-screen confirmation on any Android version (only *app*-initiated installs do).
+The `install.sh` shipped with each [app release](https://github.com/mhoogenbosch/PiPup/releases) does the
+whole thing — download the latest APK, `adb install -r`, re-grant the two app-ops that every reinstall
+resets, and start the service. Call it from Home Assistant with a `shell_command`:
+
+```yaml
+# configuration.yaml — adb must be available where Home Assistant runs (see note below)
+shell_command:
+  pipup_update_firetv: >-
+    /config/pipup/install.sh 192.168.1.10 192.168.1.11
+```
+
+Then update those TVs on a schedule, or when the integration reports a newer version is available:
+
+```yaml
+alias: PiPup silent update (Android < 12)
+description: adb-installs the latest APK on TVs that cannot self-update silently
+triggers:
+  - trigger: time
+    at: "04:30:00"          # nightly; or trigger on the update entity below
+conditions:
+  # only bother when an update is actually available and the TV needs the remote route
+  - condition: state
+    entity_id: update.pipup_living_room_app
+    attribute: requires_remote
+    state: true
+  - condition: template
+    value_template: >-
+      {{ is_state('update.pipup_living_room_app', 'on') }}   {# on = update available #}
+actions:
+  - action: shell_command.pipup_update_firetv
+```
+
+Notes:
+- **adb has to be available where Home Assistant runs.** Home Assistant OS does not ship it — use a
+  separate always-on host (a Pi/PC) with `android-tools-adb` that runs the script, or an ADB add-on. On
+  Home Assistant Container/Core, install `android-tools-adb` in that environment. (The maintainer runs
+  the script from a separate host, which is also how this fleet is kept updated.)
+- Enable **ADB debugging** on each TV once, and authorise the host's adb key (the same one the
+  [Android TV integration](https://www.home-assistant.io/integrations/androidtv/) uses works well).
+- On a **TCL Google TV**, add `--wake` (its vendor guard freezes a background-started service); on other
+  devices the install is silent and leaves the screen untouched.
+- `install.sh` re-applies `SYSTEM_ALERT_WINDOW` and `REQUEST_INSTALL_PACKAGES` after the install, so the
+  overlay stays working — an `adb install -r` resets both.
+
 ## Security
 
 PiPup runs an **unauthenticated** HTTP server on each TV, so any device on the network can show
