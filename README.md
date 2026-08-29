@@ -53,8 +53,11 @@ Requires the [PiPup fork APK](https://github.com/mhoogenbosch/PiPup/releases) on
   - `duration: 0` → popup stays until dismissed or replaced
   - `popup_id` → re-sending the same id+content only extends the timer (stream keeps playing, no flicker)
   - `camera_entity` → shows the camera without any URLs; `camera_mode` picks **mjpeg** (default —
-    software-decoded, audio-free, safe while the TV is playing video), **stream** (HLS, hardware
-    decoder — can freeze concurrent live-TV playback on some devices) or **snapshot**
+    rendered in a WebView, audio-free), **stream** (HLS via ExoPlayer) or **snapshot**. With app
+    ≥ 0.16.0 `stream` (and any `video_url`, incl. `rtsp://`) renders into a TextureView, so it shows
+    **over video the TV is already playing**; on older apps it used a `VideoView` that could freeze or
+    black out concurrent playback — update the app rather than avoiding `stream`. HLS runs a few
+    seconds behind live; for a doorbell-style popup a direct `rtsp://` `video_url` is snappier
   - `position` is optional — omitted means the device's configured default position
   - `muted: true` **by default** (requires app ≥ 0.2.4) — audio in a popup can freeze video playback
     on some TVs; pass `muted: false` when you do want sound
